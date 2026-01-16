@@ -7,14 +7,27 @@ from concurrent.futures import ThreadPoolExecutor
 # --- CONFIGURATION ---
 ORG_NAME = "planningalerts-scrapers"
 OUTPUT_DIR = "planningalerts_monorepo"
-GITHUB_TOKEN = None  # Optional: Add your token if you hit rate limits (e.g., "ghp_...")
-MAX_WORKERS = 8      # Number of concurrent clones
+
+# Automatically use the token provided by Codespaces or your local environment
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
+# Number of concurrent clones (Codespaces handle 8-16 well)
+MAX_WORKERS = 16 
 
 def get_all_repos(org_name):
     """Fetches the list of all repos in the organization via GitHub API."""
     repos = []
     page = 1
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
+    
+    headers = {
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
+    if GITHUB_TOKEN:
+        print(f"🔑 Authenticating with GITHUB_TOKEN found in environment.")
+        headers["Authorization"] = f"token {GITHUB_TOKEN}"
+    else:
+        print("⚠️  No GITHUB_TOKEN found. You may hit rate limits quickly.")
     
     print(f"🔍 Fetching repository list for {org_name}...")
     
@@ -50,14 +63,14 @@ def process_repo(repo_info):
     
     # Skip if already exists
     if os.path.exists(target_path):
-        return f"⏭️  Skipped {name} (already exists)"
+        return f"⏭️  Skipped {name}"
 
     try:
         # Clone shallow copy (depth 1) to save bandwidth
         subprocess.run(
             ["git", "clone", "--depth", "1", url, target_path],
             check=True,
-            stdout=subprocess.DEVNULL, # Silence standard output
+            stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
         
@@ -82,7 +95,7 @@ def main():
     # 2. Get list of repos
     repos = get_all_repos(ORG_NAME)
     if not repos:
-        print("No repositories found. Exiting.")
+        print("No repositories found or API limit reached. Exiting.")
         return
 
     # 3. Clone in parallel
@@ -91,7 +104,6 @@ def main():
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         results = executor.map(process_repo, repos)
         
-        # Print results as they complete
         for result in results:
             print(result)
 
@@ -108,4 +120,4 @@ def main():
         print(f"⚠️  Could not finalize git repo: {e}")
 
 if __name__ == "__main__":
-    main() """Script to clone all repositories from a GitHub organization into a single monorepo."""
+    main()
