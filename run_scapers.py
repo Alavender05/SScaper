@@ -7,7 +7,7 @@ from datetime import datetime
 # --- CONFIGURATION ---
 REPO_DIR = "planningalerts_monorepo"
 OUTPUT_FILE = "combined_planning_data.xlsx"
-LIMIT = 10  # Try 10 first, then set to None for all
+LIMIT = 0  # Try 10 first, then set to None for all
 
 def run_command(command, cwd):
     try:
